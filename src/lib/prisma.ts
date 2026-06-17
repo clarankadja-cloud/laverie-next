@@ -6,7 +6,15 @@ let prismaInstance: any = null
 
 export function getPrisma() {
   if (!prismaInstance) {
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
+    const isProduction = process.env.NODE_ENV === 'production'
+    const maxConnections = process.env.DATABASE_POOL_MAX
+      ? parseInt(process.env.DATABASE_POOL_MAX, 10)
+      : (isProduction ? 2 : 10)
+
+    const pool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: maxConnections,
+    })
     const adapter = new PrismaPg(pool)
     prismaInstance = new PrismaClient({ adapter })
   }
