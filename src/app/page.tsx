@@ -37,7 +37,13 @@ export default function HomePage() {
   return (
     <>
       {/* HERO */}
-      <section className="relative min-h-screen flex items-center bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 overflow-hidden">
+      <section className="relative min-h-screen flex items-center bg-slate-950 overflow-hidden">
+        {/* Background of the main station */}
+        <div 
+          className="absolute inset-0 bg-[url('/laverie.jfif')] bg-cover bg-center opacity-20 mix-blend-overlay"
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900/90 to-blue-950/80" />
         <div className="absolute inset-0 opacity-5" style={{backgroundImage:'radial-gradient(circle at 2px 2px,white 1px,transparent 0)',backgroundSize:'40px 40px'}}/>
         <div className="absolute top-20 right-10 w-96 h-96 bg-blue-500 rounded-full blur-3xl opacity-10"/>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 grid lg:grid-cols-2 gap-16 items-center">

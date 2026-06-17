@@ -14,9 +14,9 @@ export default function Footer() {
 
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-2 font-bold text-xl text-white mb-4">
-              <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
-                <Droplets className="text-white w-5 h-5" />
+            <div className="flex items-center gap-2.5 font-bold text-xl text-white mb-4">
+              <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center border border-slate-700 shadow-sm shrink-0">
+                <img src="/hautePression.jfif" className="w-full h-full object-cover" alt="LaveriePro Logo" />
               </div>
               LaveriePro
             </div>

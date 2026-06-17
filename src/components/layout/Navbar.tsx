@@ -50,9 +50,9 @@ export default function Navbar() {
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl text-blue-900">
-            <div className="w-9 h-9 bg-blue-900 rounded-xl flex items-center justify-center">
-              <Droplets className="text-white w-5 h-5" />
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl text-blue-900">
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center border border-blue-100 shadow-sm shrink-0">
+              <img src="/hautePression.jfif" className="w-full h-full object-cover" alt="LaveriePro Logo" />
             </div>
             LaveriePro
           </Link>
