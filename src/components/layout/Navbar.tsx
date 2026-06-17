@@ -20,6 +20,8 @@ export default function Navbar() {
   const pathname = usePathname()
   const router   = useRouter()
 
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/rapports')) return null
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', onScroll)

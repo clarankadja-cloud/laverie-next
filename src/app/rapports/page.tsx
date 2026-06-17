@@ -61,7 +61,7 @@ export default function RapportsPage() {
 
   return (
     <>
-      <section className="pt-24 pb-8 bg-gradient-to-b from-slate-900 to-slate-800">
+      <section className="pt-12 pb-8 bg-gradient-to-b from-slate-900 to-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex items-center gap-3 mb-2">
             <BarChart2 className="text-blue-400" size={32}/>
