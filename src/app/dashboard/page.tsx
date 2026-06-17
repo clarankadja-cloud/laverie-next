@@ -68,6 +68,8 @@ export default function DashboardPage() {
 
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [reassignWash, setReassignWash] = useState<any>(null)
+  const [selectedNewStationId, setSelectedNewStationId] = useState<number>(0)
 
   const router = useRouter()
 
@@ -141,6 +143,45 @@ export default function DashboardPage() {
         const err = await res.json()
         alert(err.message || 'Erreur lors de la modification.')
       } else {
+        refreshData()
+      }
+    } catch {
+      alert('Erreur réseau.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleAcceptClick = (wash: any) => {
+    const station = stations.find(s => s.id === wash.stationId)
+    if (station && station.placesLibres <= 0) {
+      setReassignWash(wash)
+      const available = stations.find(s => s.statut === 'ACTIVE' && s.placesLibres > 0)
+      if (available) {
+        setSelectedNewStationId(available.id)
+      } else {
+        setSelectedNewStationId(0)
+      }
+    } else {
+      handleUpdateWashStatus(wash.id, 'IN_PROGRESS')
+    }
+  }
+
+  const handleReassignAndAccept = async (washId: number, newStationId: number) => {
+    setActionLoading(true)
+    const token = localStorage.getItem('token')
+    try {
+      const res = await fetch('/api/washes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: washId, statut: 'IN_PROGRESS', stationId: newStationId })
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.message || 'Erreur lors de la réaffectation.')
+      } else {
+        setReassignWash(null)
+        setSelectedNewStationId(0)
         refreshData()
       }
     } catch {
@@ -686,7 +727,7 @@ export default function DashboardPage() {
                               {w.statut === 'PENDING' && (
                                 <button
                                   disabled={actionLoading}
-                                  onClick={() => handleUpdateWashStatus(w.id, 'IN_PROGRESS')}
+                                  onClick={() => handleAcceptClick(w)}
                                   className="text-[11px] bg-blue-900 text-white font-bold px-2.5 py-1 rounded-lg hover:bg-blue-950 transition-all shadow-sm"
                                 >
                                   Accepter
@@ -761,7 +802,7 @@ export default function DashboardPage() {
                                   <>
                                     <button
                                       disabled={actionLoading}
-                                      onClick={() => handleUpdateWashStatus(w.id, 'IN_PROGRESS')}
+                                      onClick={() => handleAcceptClick(w)}
                                       className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-1 rounded shadow-sm flex items-center gap-1 transition-all"
                                     >
                                       Accepter
@@ -1374,6 +1415,80 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reassign Modal */}
+      {reassignWash && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-xl border border-slate-100">
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Station complète</h3>
+            <p className="text-slate-500 text-sm mb-6">
+              La station <strong>{stations.find(s => s.id === reassignWash.stationId)?.nom || 'sélectionnée'}</strong> est complète (0 places libres). 
+              Veuillez réaffecter ce lavage vers une autre station disponible ou refuser la réservation.
+            </p>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Stations disponibles</label>
+                {stations.filter(s => s.statut === 'ACTIVE' && s.placesLibres > 0).length === 0 ? (
+                  <div className="bg-orange-50 text-orange-700 text-xs px-4 py-3 rounded-xl font-medium">
+                    Aucune autre station n'a de places libres actuellement.
+                  </div>
+                ) : (
+                  <select
+                    value={selectedNewStationId}
+                    onChange={(e) => setSelectedNewStationId(Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  >
+                    {stations
+                      .filter(s => s.statut === 'ACTIVE' && s.placesLibres > 0)
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nom} ({s.placesLibres} places libres - {s.quartier})
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button
+                  disabled={actionLoading}
+                  onClick={() => {
+                    setReassignWash(null)
+                    setSelectedNewStationId(0)
+                  }}
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all"
+                >
+                  Fermer
+                </button>
+                <button
+                  disabled={actionLoading || selectedNewStationId === 0}
+                  onClick={() => handleReassignAndAccept(reassignWash.id, selectedNewStationId)}
+                  className="flex-1 py-3 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoading && <Loader2 size={16} className="animate-spin"/>}
+                  Réaffecter et Valider
+                </button>
+              </div>
+              <button
+                disabled={actionLoading}
+                onClick={async () => {
+                  if (confirm('Voulez-vous refuser cette réservation ?')) {
+                    await handleUpdateWashStatus(reassignWash.id, 'CANCELLED')
+                    setReassignWash(null)
+                    setSelectedNewStationId(0)
+                  }
+                }}
+                className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-all border border-red-100"
+              >
+                Refuser la réservation
+              </button>
+            </div>
           </div>
         </div>
       )}

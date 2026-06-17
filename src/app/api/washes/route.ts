@@ -68,7 +68,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ message: 'Non autorisé' }, { status: 403 })
     }
 
-    const { id, statut } = await req.json()
+    const { id, statut, stationId } = await req.json()
     if (!id || !statut) return NextResponse.json({ message: 'Données manquantes' }, { status: 400 })
 
     const wash = await prisma.wash.findUnique({ where: { id: Number(id) } })
@@ -76,34 +76,68 @@ export async function PUT(req: NextRequest) {
 
     const oldStatut = wash.statut
     const newStatut = statut
+    const oldStationId = wash.stationId
+    const newStationId = stationId !== undefined ? Number(stationId) : oldStationId
+    const stationChanged = newStationId !== oldStationId
 
     if (oldStatut === 'COMPLETED' || oldStatut === 'CANCELLED') {
       return NextResponse.json({ message: 'Cette prestation est déjà close.' }, { status: 400 })
     }
 
     // 1. Transition to IN_PROGRESS (validation by admin): check and decrement placesLibres
-    if (newStatut === 'IN_PROGRESS' && oldStatut !== 'IN_PROGRESS') {
-      const station = await prisma.station.findUnique({ where: { id: wash.stationId } })
-      if (!station) {
-        return NextResponse.json({ message: 'Station introuvable' }, { status: 404 })
-      }
-      if (station.statut !== 'ACTIVE') {
-        return NextResponse.json({ message: 'Cette station est indisponible.' }, { status: 400 })
-      }
-      if (station.placesLibres <= 0) {
-        return NextResponse.json({ message: 'Cette station est complète pour le moment.' }, { status: 400 })
-      }
+    if (newStatut === 'IN_PROGRESS') {
+      if (oldStatut === 'PENDING') {
+        const targetStation = await prisma.station.findUnique({ where: { id: newStationId } })
+        if (!targetStation) {
+          return NextResponse.json({ message: 'Station introuvable' }, { status: 404 })
+        }
+        if (targetStation.statut !== 'ACTIVE') {
+          return NextResponse.json({ message: 'Cette station est indisponible.' }, { status: 400 })
+        }
 
-      await prisma.station.update({
-        where: { id: wash.stationId },
-        data: { placesLibres: { decrement: 1 } }
-      })
+        const updateResult = await prisma.station.updateMany({
+          where: { id: newStationId, placesLibres: { gt: 0 } },
+          data: { placesLibres: { decrement: 1 } }
+        })
+        if (updateResult.count === 0) {
+          return NextResponse.json({ message: 'Cette station est complète pour le moment.' }, { status: 400 })
+        }
+      } else if (oldStatut === 'IN_PROGRESS' && stationChanged) {
+        const targetStation = await prisma.station.findUnique({ where: { id: newStationId } })
+        if (!targetStation) {
+          return NextResponse.json({ message: 'Station introuvable' }, { status: 404 })
+        }
+        if (targetStation.statut !== 'ACTIVE') {
+          return NextResponse.json({ message: 'Cette station est indisponible.' }, { status: 400 })
+        }
+
+        try {
+          await prisma.$transaction(async (tx) => {
+            const updateResult = await tx.station.updateMany({
+              where: { id: newStationId, placesLibres: { gt: 0 } },
+              data: { placesLibres: { decrement: 1 } }
+            })
+            if (updateResult.count === 0) {
+              throw new Error('STATION_FULL')
+            }
+            await tx.station.update({
+              where: { id: oldStationId },
+              data: { placesLibres: { increment: 1 } }
+            })
+          })
+        } catch (err: any) {
+          if (err.message === 'STATION_FULL') {
+            return NextResponse.json({ message: 'Cette station est complète pour le moment.' }, { status: 400 })
+          }
+          throw err
+        }
+      }
     }
 
     // 2. Transition from IN_PROGRESS to COMPLETED/CANCELLED: increment placesLibres back
     if (oldStatut === 'IN_PROGRESS' && (newStatut === 'COMPLETED' || newStatut === 'CANCELLED')) {
       await prisma.station.update({
-        where: { id: wash.stationId },
+        where: { id: oldStationId },
         data: { placesLibres: { increment: 1 } }
       })
     }
@@ -123,7 +157,7 @@ export async function PUT(req: NextRequest) {
     // Update status in db
     const updatedWash = await prisma.wash.update({
       where: { id: Number(id) },
-      data: { statut: newStatut },
+      data: { statut: newStatut, stationId: newStationId },
       include: { service: true, station: true }
     })
 
