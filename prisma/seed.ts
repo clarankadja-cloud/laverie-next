@@ -13,7 +13,11 @@ try {
     env.split('\n').forEach(line => {
       const parts = line.split('=')
       if (parts.length === 2) {
-        process.env[parts[0].trim()] = parts[1].trim().replace(/"/g, '').replace(/\r/g, '')
+        const key = parts[0].trim()
+        const val = parts[1].trim().replace(/"/g, '').replace(/\r/g, '')
+        if (!process.env[key]) {
+          process.env[key] = val
+        }
       }
     })
   }
